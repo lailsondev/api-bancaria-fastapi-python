@@ -25,7 +25,6 @@ class TransacaoRepository:
     async def get_historico(self, filtro, tipo_filtro, limit, skip) -> TransacaoOut | list[TransacaoOut]:
         return await self._get_by_filter(filtro=filtro, tipo_filtro=tipo_filtro, limit=limit, skip=skip)
 
-
     async def _get_by_filter(self, filtro, tipo_filtro, limit, skip) -> Record | list[Record]:
         coluna_a_filtrar = transacao.c[tipo_filtro]
 

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.database import database, metadata, DATABASE_URL
 
-from app.controllers import agencia_controller, cliente_controller, transacao_controller
+from app.controllers import auth_controller, agencia_controller, cliente_controller, transacao_controller
 
 
 @asynccontextmanager
@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.include_router(auth_controller.router)
 app.include_router(agencia_controller.router)
 app.include_router(cliente_controller.router)
 app.include_router(transacao_controller.router)

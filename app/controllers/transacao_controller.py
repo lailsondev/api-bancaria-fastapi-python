@@ -1,11 +1,14 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends
+
+from app.schemas.auth_in import LoginIn
+from app.seguranca import login_required
 
 from app.dependencias.dependencias import fabrica_transacao_service
 from app.schemas.transacao_in import TransacaoIn
 from app.services.transacao_service import TransacaoService
 from app.views.transacao_out import TransacaoOut, TransacaoHistoricoOut
 
-router = APIRouter(prefix="/transacoes")
+router = APIRouter(prefix="/transacoes", dependencies=[Depends(login_required)])
 
 
 
