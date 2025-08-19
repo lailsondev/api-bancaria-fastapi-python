@@ -4,7 +4,6 @@ from decimal import Decimal
 from fastapi import status, HTTPException
 
 from app.repositories.transacao_repository import TransacaoRepository
-from app.schemas.conta_in import ContaUnicaIn
 from app.schemas.transacao_in import TransacaoIn
 from app.services.conta_service import ContaService
 from app.views.agencia_out import AgenciaOut
@@ -17,6 +16,16 @@ class TransacaoService:
     def __init__(self, repository: TransacaoRepository, conta_service: ContaService):
         self.repository = repository
         self.conta_service = conta_service
+
+    async def _valida_conta_origem(self, numero_conta: int):
+        conta_origem = await self.conta_service.obter_conta(
+            numero=numero_conta
+        )
+
+        if not conta_origem:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta não encontrada.")
+
+        return conta_origem
 
     async def get_historico(self, data, conta_id, numero_conta, limit, skip) -> TransacaoOut | list[TransacaoOut]:
 
@@ -71,78 +80,93 @@ class TransacaoService:
 
         return transacao_historico_out
 
+    async def _atualiza_saldo_insere_transacao(self):
+        pass
+
     async def create_transacao(self, post: TransacaoIn):
 
-        if not post.numero_conta:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Para efetuar uma transferência informe o número da sua conta - numero_conta.")
+        if post.tipo not in ('deposito', 'saque', 'transferencia'):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Tipo de opreação inválida!")
 
         if post.valor <= 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="O valor do depósito deve ser positivo.")
 
-        conta_origem = await self.conta_service.obter_conta(
-            numero=post.numero_conta
+        try:
+            conta_origem = await self._valida_conta_origem(post.numero_conta)
+
+            if post.tipo == 'deposito':
+                return await self._efetua_deposito(post, conta_origem)
+            elif post.tipo == 'saque':
+                return await self._efetua_saque(post, conta_origem)
+            else:
+                return await self._efetua_transferencia(post, conta_origem)
+
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+    async def _efetua_deposito(self, post: TransacaoIn, conta_origem):
+        novo_saldo = conta_origem["saldo"] + Decimal(post.valor)
+
+        await self.conta_service.update_saldo(novo_saldo, conta_origem["id"])
+        resultado_transacao = await self.repository.create_transacao(post, conta_origem)
+
+        return await self._mapear_transacao_out(resultado_transacao, conta_origem, novo_saldo)
+
+    async def _efetua_saque(self, post: TransacaoIn, conta_origem):
+
+        saldo_atual = Decimal(conta_origem["saldo"])
+        valor_saque = Decimal(str(post.valor))
+
+        if saldo_atual <= 0 or valor_saque > saldo_atual:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Não foi possível realizar o saque. Saldo onsuficiente: R$ {saldo_atual:.2f}.")
+
+        novo_saldo = saldo_atual - valor_saque
+
+        await self.conta_service.update_saldo(novo_saldo, conta_origem["id"])
+
+        resultado_transacao = await self.repository.create_transacao(post, conta_origem)
+
+        return await self._mapear_transacao_out(
+            resultado_transacao, conta_origem, novo_saldo
         )
 
-        if not conta_origem:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta não encontrada.")
+    async def _efetua_transferencia(self, post: TransacaoIn, conta_origem):
+        if post.conta_id_destino is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Para efetuar uma transferência informe o ID da conta de destino.")
 
-        if post.tipo == "deposito":
+        valor_conta_origem = Decimal(str(conta_origem["saldo"]))
 
-            novo_saldo = conta_origem["saldo"] + Decimal(post.valor)
+        if valor_conta_origem <= 0 or post.valor > valor_conta_origem:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Você não tem saldo suficiente.")
 
-            await self.repository.update_saldo(novo_saldo, conta_origem["id"])
-            resultado_transacao = await self.repository.create_transacao(post, conta_origem)
+        conta_destino = await self.conta_service.obter_conta(
+            conta_id_destino=post.conta_id_destino,
+            tipo=post.tipo
+        )
 
-        if post.tipo == "transferencia":
+        if not conta_destino:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta de destino não encontrada.")
 
-            if post.conta_id_destino is None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Para efetuar uma transferência informe o ID da conta de destino.")
+        novo_saldo = valor_conta_origem - Decimal(str(post.valor))
+        novo_saldo_conta_destino = conta_destino["saldo"] + Decimal(str(post.valor))
 
-            valor_conta_origem = Decimal(str(conta_origem["saldo"]))
+        await self.conta_service.update_saldo(
+            novo_saldo=novo_saldo_conta_destino,
+            conta_id=conta_destino["id"]
+        )
 
-            if valor_conta_origem <= 0 or post.valor > valor_conta_origem:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Você não tem saldo suficiente.")
+        await self.conta_service.update_saldo(novo_saldo, conta_origem["id"])
 
-            conta_destino = await self.conta_service.obter_conta(
-                conta_id_destino=post.conta_id_destino,
-                tipo=post.tipo
-            )
+        resultado_transacao = await self.repository.create_transacao(post, conta_origem)
 
-            if not conta_destino:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conta de destino não encontrada.")
+        return await self._mapear_transacao_out(resultado_transacao, conta_origem, novo_saldo)
 
-            novo_saldo = valor_conta_origem - Decimal(str(post.valor))
-            novo_saldo_conta_destino = conta_destino["saldo"] + Decimal(str(post.valor))
-
-            await self.conta_service.update_saldo(
-                novo_saldo=novo_saldo_conta_destino,
-                conta_id=conta_destino["id"]
-            )
-
-            resultado_transacao = await self.repository.create_transacao(
-                TransacaoIn(
-                    tipo=post.tipo,
-                    valor=post.valor,
-                    numero_conta=post.numero_conta,
-                    conta_id_origem=conta_origem["id"],
-                    conta_id_destino=conta_destino["id"],
-                    conta_id=conta_origem["id"],
-                ),
-                conta_origem
-            )
-
-            await self.conta_service.update_saldo(novo_saldo, conta_origem["id"])
-
-
-
-
-
-
-
+    async def _mapear_transacao_out(self, resultado_transacao, conta_origem, novo_saldo):
         resultado_transacao_dict = dict(resultado_transacao)
 
         return TransacaoOut(

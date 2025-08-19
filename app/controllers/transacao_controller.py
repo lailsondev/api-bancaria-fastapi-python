@@ -20,8 +20,8 @@ async def historico(
 ):
     return await service.get_historico(data=data, conta_id=conta_id, numero_conta=numero_conta, limit=limit, skip=skip)
 
-@router.post("/depositar", status_code=status.HTTP_201_CREATED, response_model=TransacaoOut)
-async def depositar(
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=TransacaoOut)
+async def efetuar_transacao(
         post: TransacaoIn,
         service: TransacaoService = Depends(fabrica_transacao_service),
 ):
