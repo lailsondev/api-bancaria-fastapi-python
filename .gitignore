@@ -1,0 +1,22 @@
+.env
+# Ignorar caches e arquivos gerados pelo Python
+__pycache__/
+*.pyc
+
+# Ignorar o cache do pytest
+.pytest_cache/
+
+# Ignorar o cache do pycharm
+.idea/
+
+# Ignorar o ambiente virtual do Python (se estiver no mesmo diretório)
+# O nome da pasta pode variar (ex: venv/, .venv/)
+venv/
+
+# Ignorar outras pastas e arquivos comuns
+# logs
+*.log
+
+# Bancos de dados locais (se estiver usando)
+*.sqlite3
+*.db
