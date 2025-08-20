@@ -47,11 +47,11 @@ class JWTBearer(HTTPBearer):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código de autenticação inválido.")
 
 
-def sign_jwt(cliente_id: int) -> JWTToken:
+def sign_jwt(customer_id: int) -> JWTToken:
     now = time.time()
     payload = {
         "iss": "api-bancaria-assincrona-fastapi-com-br",
-        "sub": str(cliente_id),
+        "sub": str(customer_id),
         "aud": "api-bancaria-assincrona-fastapi",
         "exp": now + (60 * 30),
         "iat": now,

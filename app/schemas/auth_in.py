@@ -1,5 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginIn(BaseModel):
-    cliente_id: int
+    customer_id: int = Field(alias="cliente_id")
+
+    class Config:
+        populate_by_name = True
