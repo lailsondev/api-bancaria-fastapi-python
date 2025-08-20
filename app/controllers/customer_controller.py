@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 
-from app.dependencias.dependencies import factory_customer_service
+from app.dependencies.dependencies import factory_customer_service
 from app.schemas.customer_in import CustomerIn
 from app.services.customer_service import CustomerService
 from app.views.customer_with_account_out import CustomerWithAccountOut

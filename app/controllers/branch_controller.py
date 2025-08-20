@@ -1,6 +1,6 @@
 from fastapi import Depends, status, APIRouter
 
-from app.dependencias.dependencies import factory_branch_service
+from app.dependencies.dependencies import factory_branch_service
 from app.schemas.branch_in import BranchIn
 from app.services.branch_service import BranchService
 from app.views.branch_out import BranchOut

@@ -3,7 +3,7 @@ from fastapi import APIRouter, status, Depends
 from app.schemas.auth_in import LoginIn
 from app.security import login_required
 
-from app.dependencias.dependencies import factory_transaction_service
+from app.dependencies.dependencies import factory_transaction_service
 from app.schemas.transaction_in import TransactionIn
 from app.services.transaction_service import TransactionService
 from app.views.transaction_out import TransactionOut, TransactionHistoryOut
