@@ -11,5 +11,8 @@ class ClienteService:
     async def get_clientes(self, limit, skip) -> list[ClienteComContaOut]:
         return await self.repository.get_clientes(limit=limit, skip=skip)
 
+    async def get_costumer(self, id) -> ClienteComContaOut:
+        return await self.repository.get_cliente_by_id(id)
+
     async def criar_cliente(self, post: ClienteIn) -> ClienteComContaOut:
         return await self.repository.criar_cliente(post)

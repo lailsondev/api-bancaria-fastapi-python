@@ -17,6 +17,14 @@ async def get_clientes(
 ):
     return await service.get_clientes(limit=limit, skip=skip)
 
+@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=ClienteComContaOut)
+async def get_cliente(
+        id: int,
+        service: ClienteService = Depends(fabrica_cliente_service)
+):
+    return await service.get_costumer(id)
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=ClienteComContaOut)
 async def create_cliente(
         post: ClienteIn,

@@ -13,6 +13,7 @@ from app.schemas.cliente_in import ClienteIn
 from app.schemas.conta_in import ContaIn
 from app.services.conta_service import ContaService
 from app.views.cliente_com_conta_out import ClienteComContaOut
+from app.views.conta_out import ContaOut
 
 
 class ClienteRepository:
@@ -22,23 +23,7 @@ class ClienteRepository:
 
 
     async def get_clientes(self, limit, skip) -> list[ClienteComContaOut]:
-        query = (
-            sa.select(
-                cliente.c.id.label('cliente_id'),
-                cliente.c.nome.label('cliente_nome'),
-                cliente.c.sobrenome.label('cliente_sobrenome'),
-                cliente.c.data_nascimento.label('cliente_data_nascimento'),
-                cliente.c.cpf.label('cliente_cpf'),
-                conta.c.id.label('conta_id'),
-                conta.c.numero.label('conta_numero'),
-                conta.c.saldo.label('conta_saldo'),
-                conta.c.created_at.label('conta_created_at'),
-                conta.c.agencia_id.label('conta_agencia_id'),
-            ).select_from(cliente).join(
-                conta,
-                conta.c.cliente_id == cliente.c.id
-            ).limit(limit).offset(skip)
-        )
+        query = self._return_query_costumer_with_account().limit(limit).offset(skip)
 
         resultados: list[Record] = await self.db.fetch_all(query)
 
@@ -64,6 +49,28 @@ class ClienteRepository:
             clientes_com_conta.append(ClienteComContaOut.model_validate(dados_cliente))
 
         return clientes_com_conta
+
+    async def get_cliente_by_id(self, id: int) -> ClienteComContaOut:
+        query = self._return_query_costumer_with_account().where(cliente.c.id == id)
+
+        row: Record = await self.db.fetch_one(query)
+        row_dict = dict(row)
+
+        conta_out = ContaOut(
+            id=row_dict["conta_id"],
+            numero=row_dict["conta_numero"],
+            saldo=row_dict["conta_saldo"],
+            created_at=row_dict["conta_created_at"],
+        )
+
+        return ClienteComContaOut(
+            id=row_dict["cliente_id"],
+            nome=row_dict["cliente_nome"],
+            sobrenome=row_dict["cliente_sobrenome"],
+            data_nascimento=row_dict["cliente_data_nascimento"],
+            cpf=row_dict["cliente_cpf"],
+            conta=conta_out
+        )
 
     async def criar_cliente(self, post: ClienteIn) -> ClienteComContaOut:
 
@@ -102,3 +109,20 @@ class ClienteRepository:
                 cpf=novo_cliente["cpf"],
                 conta=nova_conta
             )
+
+    def _return_query_costumer_with_account(self):
+        return sa.select(
+                cliente.c.id.label('cliente_id'),
+                cliente.c.nome.label('cliente_nome'),
+                cliente.c.sobrenome.label('cliente_sobrenome'),
+                cliente.c.data_nascimento.label('cliente_data_nascimento'),
+                cliente.c.cpf.label('cliente_cpf'),
+                conta.c.id.label('conta_id'),
+                conta.c.numero.label('conta_numero'),
+                conta.c.saldo.label('conta_saldo'),
+                conta.c.created_at.label('conta_created_at'),
+                conta.c.agencia_id.label('conta_agencia_id'),
+        ).select_from(cliente).join(
+            conta,
+            conta.c.cliente_id == cliente.c.id
+        )
