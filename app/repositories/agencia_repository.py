@@ -17,6 +17,13 @@ class AgenciaRepository:
 
         return [AgenciaOut(**dict(row)) for row in rows]
 
+    async def get_find_by_id(self, id: int) -> AgenciaOut:
+        query = agencia.select().where(agencia.c.id == id)
+
+        row: Record = await self.db.fetch_one(query)
+
+        return AgenciaOut(**dict(row))
+
 
     async def create(self, post: AgenciaIn) -> AgenciaOut:
         query = agencia.insert().values(**post.model_dump())
